@@ -4,7 +4,10 @@ This repo adds supports for arrows to the frp-arduino library. Haskell code writ
 
 ## Usage
 Running `./make fileName` will compile the file and upload to an Arduino Uno on port /dev/cu.usbmodem1411
+<br>
 If the shell throws an error while linking, then first run `./make fileName clean` and then `./make fileName`
+<br>
+The output is written to build-output/fileName
 
 ## Added functionality
 
