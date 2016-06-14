@@ -23,9 +23,12 @@ module Arduino.DSL
     , Output
     , LLI
     , compileProgram
+    , parseProgram
     , def
     , (=:)
-    , foo
+    , prefixOutput
+    , bootup
+    , constStream
 
     -- * Expressions
     , Expression
@@ -58,6 +61,10 @@ module Arduino.DSL
     , output2
     , output6
 
+    -- ** Misc
+    , unit
+    , isEqual
+
     -- ** Conditionals
     , if_
 
@@ -67,6 +74,9 @@ module Arduino.DSL
     , mapS
     , mapSMany
     , mapS2
+
+    -- ** Merging
+    , mergeS
 
     -- ** Filtering
     , filterS
@@ -83,7 +93,7 @@ module Arduino.DSL
     -- ** Syntactic sugar
     , (~>)
 
-    , pack
+    -- ** Arrow functions
     , (>>>)
     , arr
     , first
@@ -102,7 +112,9 @@ module Arduino.DSL
     , writeWord
     , readBit
     , readWord
+    , readTwoPartWord
     , waitBitSet
+    , waitBitCleared
     , byteConstant
     , wordConstant
     , end
@@ -113,10 +125,13 @@ import Arduino.Internal.CodeGen.Dot(streamsToDot)
 import Control.Monad.State
 import Data.Char (ord)
 import qualified Arduino.Internal.DAG as DAG
+import System.Exit (exitFailure)
 
 data DAGState = DAGState
     { idCounter :: Int
     , dag       :: DAG.Streams
+    , resources :: [String]
+    , errors    :: [String]
     }
 
 type Action a = State DAGState a
@@ -132,16 +147,29 @@ newtype LLI a = LLI { unLLI :: DAG.LLI }
 instance Num (Expression a) where
     (+) left right = Expression $ DAG.Add (unExpression left) (unExpression right)
     (-) left right = Expression $ DAG.Sub (unExpression left) (unExpression right)
-    (*) = error "* not yet implemented"
+    (*) left right = Expression $ DAG.Mul (unExpression left) (unExpression right)
     abs = error "abs not yet implemented"
     signum = error "signum not yet implemented"
     fromInteger value = Expression $ DAG.WordConstant $ fromIntegral value
 
 compileProgram :: Action a -> IO ()
 compileProgram action = do
-    let dagState = execState action (DAGState 1 DAG.emptyStreams)
-    writeFile "main.c" $ streamsToC (dag dagState)
-    writeFile "dag.dot" $ streamsToDot (dag dagState)
+    case parseProgram action of
+        Right dag -> do
+            writeFile "main.c" $ streamsToC dag
+            writeFile "dag.dot" $ streamsToDot dag
+        Left errors -> do
+            putStrLn "Errors:"
+            mapM_ putStrLn errors
+            exitFailure
+
+parseProgram :: Action a -> Either [String] DAG.Streams
+parseProgram action =
+    case errors dagState of
+        [] -> Right $ dag dagState
+        x  -> Left x
+    where
+        dagState = execState action (DAGState 1 DAG.emptyStreams [] [])
 
 def :: Stream a -> Action (Stream a)
 def stream = do
@@ -153,9 +181,15 @@ def stream = do
 
 infixr 0 =:
 
-foo :: Output a -> (Stream b -> Stream a) -> Output b
-foo output fn = Output $ \stream -> do
+prefixOutput :: (Stream b -> Stream a) -> Output a -> Output b
+prefixOutput fn output = Output $ \stream -> do
     output =: fn stream
+
+bootup :: Stream ()
+bootup = Stream $ addStream "bootup" DAG.Bootup
+
+constStream :: Expression a -> Stream a
+constStream value = mapS (const value) bootup
 
 output2 :: Output a1
         -> Output a2
@@ -189,6 +223,7 @@ output6 output1 output2 output3 output4 output5 output6 =
     let outputStream = fn (Stream (return streamName))
     unStream $ outputStream
 
+-- To give it a lower precedence than the arrow operators
 infixl 1 ~>
 
 -- | Similar to map in Haskell. \"S\" is for stream.
@@ -222,6 +257,13 @@ mapS2 fn left right = Stream $ do
     where
         expression = unExpression $ fn (Expression $ DAG.Input 0)
                                        (Expression $ DAG.Input 1)
+
+mergeS :: [Stream a] -> Stream a
+mergeS streams = Stream $ do
+    names <- mapM unStream streams
+    expressionStreamName <- addAnonymousStream (DAG.Merge $ DAG.Input 0)
+    mapM_ (\x -> addDependency x expressionStreamName) names
+    return expressionStreamName
 
 -- | Needs a tuple created with 'pack2'.
 delay :: Stream (a, DAG.Word) -> Stream a
@@ -268,6 +310,13 @@ flattenS stream = Stream $ do
     addDependency streamName expressionStreamName
     where
         expression = DAG.Flatten $ DAG.Input 0
+
+unit :: Expression ()
+unit = Expression $ DAG.Unit
+
+isEqual :: Expression a -> Expression a -> Expression Bool
+isEqual left right =
+    Expression $ DAG.Equal (unExpression left) (unExpression right)
 
 if_ :: Expression Bool -> Expression a -> Expression a -> Expression a
 if_ condition trueExpression falseExpression =
@@ -336,9 +385,6 @@ bitLow = Expression $ DAG.BitConstant DAG.Low
 bitHigh :: Expression DAG.Bit
 bitHigh = Expression $ DAG.BitConstant DAG.High
 
-pack :: Stream a -> Stream b -> Stream (a, b)
-pack = mapS2 (\a -> \b -> pack2 (a, b))
-
 (>>>) :: (Stream a -> Stream b) -> (Stream b -> Stream c) -> (Stream a -> Stream c)
 f >>> g = \str -> str ~> f ~> g
 
@@ -358,7 +404,7 @@ first fn = \stream ->
           s2N <- addAnonymousStream $ DAG.Map $ DAG.TupleValue 1 $ DAG.Input 0
           addDependency sN s2N
     let s3 = s1 ~> fn
-    unStream $ pack s3 s2
+    unStream $ mapS2 (\a -> \b -> pack2 (a, b)) s3 s2
 
 second :: (Stream a -> Stream b) -> (Stream (c, a) -> Stream (c, b))
 second fn = arr swapE >>> first fn >>> arr swapE
@@ -396,27 +442,42 @@ addStream :: DAG.Identifier -> DAG.Body -> Action DAG.Identifier
 addStream name body = do
     streamTreeState <- get
     unless (DAG.hasStream (dag streamTreeState) name) $ do
+        mapM_ addResource (getResources body)
         modify $ insertStream $ DAG.Stream name [] body []
     return name
     where
         insertStream :: DAG.Stream -> DAGState -> DAGState
         insertStream stream x = x { dag = DAG.addStream (dag x) stream }
 
+getResources :: DAG.Body -> [String]
+getResources (DAG.Driver resources _ _) = resources
+getResources _                          = []
+
 addDependency :: DAG.Identifier -> DAG.Identifier -> Action DAG.Identifier
 addDependency source destination = do
     modify (\x -> x { dag = DAG.addDependency source destination (dag x) })
     return destination
 
+addResource :: String -> Action ()
+addResource name = do
+    modify addResource'
+    return ()
+    where
+        addResource' dagState =
+            if name `elem` resources dagState
+                then dagState { errors = errors dagState ++ [name ++ " used twice"]}
+                else dagState { resources = name : (resources dagState) }
+
 createInput :: String -> LLI () -> LLI a -> Stream a
 createInput name initLLI bodyLLI =
     Stream $ addStream ("input_" ++ name) body
     where
-        body = DAG.Driver (unLLI initLLI) (unLLI bodyLLI)
+        body = DAG.Driver [name] (unLLI initLLI) (unLLI bodyLLI)
 
 createOutput :: String -> LLI () -> (LLI a -> LLI ()) -> Output a
 createOutput name initLLI bodyLLI = Output $ \stream -> do
     streamName <- unStream stream
-    outputName <- addAnonymousStream $ DAG.Driver (unLLI initLLI) (unLLI (bodyLLI (LLI DAG.InputValue)))
+    outputName <- addAnonymousStream $ DAG.Driver [name] (unLLI initLLI) (unLLI (bodyLLI (LLI DAG.InputValue)))
     addDependency streamName outputName
     return ()
 
@@ -438,8 +499,14 @@ readBit register bit = LLI $ DAG.ReadBit register bit
 readWord :: String -> LLI a -> LLI DAG.Word
 readWord register next = LLI $ DAG.ReadWord register (unLLI next)
 
+readTwoPartWord :: String -> String -> LLI a -> LLI DAG.Word
+readTwoPartWord lowRegister highRegister next = LLI $ DAG.ReadTwoPartWord lowRegister highRegister (unLLI next)
+
 waitBitSet :: String -> String -> LLI a -> LLI a
 waitBitSet register bit next = waitBit register bit DAG.High next
+
+waitBitCleared :: String -> String -> LLI a -> LLI a
+waitBitCleared register bit next = waitBit register bit DAG.Low next
 
 waitBit :: String -> String -> DAG.Bit -> LLI a -> LLI a
 waitBit register bit value next = LLI $ DAG.WaitBit register bit value (unLLI next)

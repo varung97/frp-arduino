@@ -63,11 +63,20 @@ genStreamsCFile streams = do
     line ""
     block "int main(void) {" $ do
         mapM genInit (streamsInTree streams)
+        mapM genInputCall (filter isBootupStream (streamsInTree streams))
         block "while (1) {" $ do
-            mapM genInputCall (filter (null . inputs) (streamsInTree streams))
+            mapM genInputCall (filter isInputStream (streamsInTree streams))
         line "}"
         line "return 0;"
     line "}"
+
+isBootupStream :: Stream -> Bool
+isBootupStream stream = case body stream of
+    Bootup -> True
+    _      -> False
+
+isInputStream :: Stream -> Bool
+isInputStream stream = null (inputs stream) && not (isBootupStream stream)
 
 genCTypes :: Gen ()
 genCTypes = do
@@ -98,7 +107,7 @@ genStreamCFunction streamTypes stream = do
     let declaration = ("static void " ++ name stream ++
                        "(" ++ streamToArgumentList streamTypes stream ++ ")")
     cFunction declaration $ do
-        genStreamInputParsing args
+        genStreamInputParsing stream args
         outputNames <- genStreamBody inputMap (body stream)
         genStreamOutputCalling outputNames stream
         return $ resultType outputNames
@@ -115,10 +124,10 @@ streamToArgumentList streamTypes stream
     | length (inputs stream) < 1 = ""
     | otherwise                  = cTypeStr argIndexCType ++ " arg, void* value"
 
-genStreamInputParsing :: [(String, String, Int)] -> Gen ()
-genStreamInputParsing args
-    | length args == 1 = do
-        let [(name, cType, _)] = args
+genStreamInputParsing :: Stream -> [(String, String, Int)] -> Gen ()
+genStreamInputParsing stream args
+    | length args == 1 || isMerge stream = do
+        let (name, cType, _):_ = args
         header $ cType ++ " " ++ name ++ " = *((" ++ cType ++ "*)value);"
     | length args > 1 = do
         forM_ args $ \(name, cType, _) -> do
@@ -131,6 +140,11 @@ genStreamInputParsing args
         line $ "}"
     | otherwise = do
         return ()
+
+isMerge :: Stream -> Bool
+isMerge stream = case body stream of
+    (Merge _) -> True
+    _         -> False
 
 genStreamBody :: M.Map Int CType -> Body -> Gen [ResultValue]
 genStreamBody inputMap body = case body of
@@ -168,8 +182,12 @@ genStreamBody inputMap body = case body of
         (Value cExpression (CList cTypeItem) _ Nothing) <-
             genExpression inputMap False expression
         return [ToFlatVariable cExpression cTypeItem]
-    (Driver _ bodyLLI) -> do
+    (Driver _ _ bodyLLI) -> do
         fmap (:[]) $ genLLI bodyLLI
+    (Merge expression) -> do
+        fmap (:[]) $ genExpression inputMap False expression
+    Bootup -> do
+        return [Value "0" CBit Literal Nothing]
 
 genExpression :: M.Map Int CType -> Bool -> Expression -> Gen ResultValue
 genExpression inputMap static expression = case expression of
@@ -193,8 +211,14 @@ genExpression inputMap static expression = case expression of
         (Value cLeft  CWord _ Nothing) <- genExpression inputMap static left
         (Value cRight CWord _ Nothing) <- genExpression inputMap static right
         literal CWord $ "(" ++ cLeft ++ " - " ++ cRight ++ ")"
+    (Mul left right) -> do
+        (Value cLeft  CWord _ Nothing) <- genExpression inputMap static left
+        (Value cRight CWord _ Nothing) <- genExpression inputMap static right
+        literal CWord $ "(" ++ cLeft ++ " * " ++ cRight ++ ")"
     (Input value) -> do
         variable ("input_" ++ show value) (inputMap M.! value)
+    Unit -> do
+        return $ Value "0" CBit Literal Nothing
     (ByteConstant value) -> do
         literal CByte $ show value
     (BoolToBit operand) -> do
@@ -219,9 +243,9 @@ genExpression inputMap static expression = case expression of
         (Value name (CTuple cTypes) _ Nothing) <- genExpression inputMap static tuple
         let cType = cTypes !! n
         let res = concat [ "*"
-                         , "((" ++ cTypeStr cType ++ "*)("
+                         , "((" ++ cTypeStr cType ++ "*)"
                          , name
-                         , ").value"
+                         , ".value"
                          , show n
                          , ")"
                          ]
@@ -262,6 +286,12 @@ genExpression inputMap static expression = case expression of
         variable temp (CList CByte)
     (WordConstant value) -> do
         literal CWord $ show value
+    (Equal leftExpression rightExpression) -> do
+        (Value cLeft _ _ _) <-
+            genExpression inputMap static leftExpression
+        (Value cRight _ _ _) <-
+            genExpression inputMap static rightExpression
+        literal CBit $ cLeft ++ " == " ++ cRight
     (If conditionExpression trueExpression falseExpression) -> do
         (Value cCondition CBit _ _) <-
             genExpression inputMap static conditionExpression
@@ -282,9 +312,9 @@ genCopy destination source cType = case cType of
     CTuple items -> forM_ (zip [0..] items) $ \(n, itemType) -> do
         let drill x = concat [ "*"
                              , "("
-                             , "(" ++ cTypeStr itemType ++ "*)("
+                             , "(" ++ cTypeStr itemType ++ "*)"
                              , x
-                             , ").value"
+                             , ".value"
                              , show n
                              , ")"
                              ]
@@ -324,10 +354,22 @@ genLLI lli = case lli of
         line $ x ++ " = " ++ register ++ ";"
         genLLI next
         variable x CWord
+    (ReadTwoPartWord lowRegister highRegister next) -> do
+        cLow <- genCVariable (cTypeStr CByte)
+        cHigh <- genCVariable (cTypeStr CByte)
+        cWord <- genCVariable (cTypeStr CWord)
+        line $ cLow ++ " = " ++ lowRegister ++ ";"
+        line $ cHigh ++ " = " ++ highRegister ++ ";"
+        line $ cWord ++ " = " ++ cLow ++ " | (" ++ cHigh ++ " << 8);"
+        genLLI next
+        variable cWord CWord
     (WaitBit register bit value next) -> do
         case value of
             High -> do
                 line $ "while ((" ++ register ++ " & (1 << " ++ bit ++ ")) == 0) {"
+                line $ "}"
+            Low -> do
+                line $ "while ((" ++ register ++ " & (1 << " ++ bit ++ ")) != 0) {"
                 line $ "}"
         genLLI next
     (Const x) -> do
@@ -380,7 +422,7 @@ genStreamOutputCalling results stream = do
 
 genInit :: Stream -> Gen ()
 genInit stream = case body stream of
-    (Driver initLLI _) -> do
+    (Driver _ initLLI _) -> do
         genLLI initLLI
         return ()
     _ -> do

@@ -18,11 +18,15 @@
 module Arduino.Library
     (
     -- * Standard library
-      module Arduino.Library
+      module Arduino.Library.Time
+    , module Arduino.Library.Tuples
+    , module Arduino.Library
     ) where
 
-import Prelude hiding (Word)
 import Arduino.DSL
+import Arduino.Library.Time
+import Arduino.Library.Tuples
+import Prelude hiding (Word)
 
 toggle :: Stream Word -> Stream Bit
 toggle = mapS (boolToBit . isEven)

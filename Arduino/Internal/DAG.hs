@@ -17,13 +17,13 @@
 
 module Arduino.Internal.DAG where
 
-import Prelude hiding (Word)
 import Data.List (partition)
 import Data.Maybe (fromJust)
---import Data.Monoid
+import Data.Monoid
 import qualified Data.Map as M
 import qualified Data.Set as S
-import qualified Data.Word as W hiding (Word)
+import qualified Data.Word as W
+import Prelude hiding (Word)
 
 type Streams = M.Map Identifier Stream
 
@@ -33,6 +33,7 @@ data Stream = Stream
     , body    :: Body
     , outputs :: [(Int, Identifier)]
     }
+    deriving (Show, Eq)
 
 data Body = Map Expression
           | MapMany [Expression]
@@ -40,10 +41,13 @@ data Body = Map Expression
           | Filter Expression
           | Flatten Expression
           | DelayMicroseconds Expression Expression
-          | Driver LLI LLI
-          deriving (Show)
+          | Driver [String] LLI LLI
+          | Merge Expression
+          | Bootup
+          deriving (Show, Eq)
 
 data Expression = Input Int
+                | Unit
                 | BitConstant Bit
                 | ByteConstant Byte
                 | WordConstant Word
@@ -57,25 +61,28 @@ data Expression = Input Int
                 | IsHigh Expression
                 | Add Expression Expression
                 | Sub Expression Expression
+                | Mul Expression Expression
                 | Greater Expression Expression
+                | Equal Expression Expression
                 | If Expression Expression Expression
-                deriving (Show)
+                deriving (Show, Eq)
 
 data LLI = WriteBit String String LLI LLI
          | WriteByte String LLI LLI
          | WriteWord String LLI LLI
          | ReadBit String String
          | ReadWord String LLI
+         | ReadTwoPartWord String String LLI
          | WaitBit String String Bit LLI
          | Const String
          | ConstBit Bit
          | InputValue
          | End
-         deriving (Show)
+         deriving (Show, Eq)
 
 data Bit = High
          | Low
-         deriving (Show)
+         deriving (Show, Eq)
 
 type Byte = W.Word8
 

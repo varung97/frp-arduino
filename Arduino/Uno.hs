@@ -32,6 +32,10 @@ module Arduino.Uno
     , pin11
     , pin12
     , pin13
+    -- * Analog input
+    , AnalogInput()
+    , analogRead
+    , a0
     -- * UART
     , uart
     -- * Clock
@@ -42,10 +46,10 @@ module Arduino.Uno
     , clock
     ) where
 
-import Prelude hiding (Word)
 import Arduino.DSL
 import Arduino.Library
-import Data.Bits (shiftR, (.&.))
+import Data.Bits (shiftR, (.&.), testBit)
+import Prelude hiding (Word)
 
 data GPIO = GPIO
     { name              :: String
@@ -53,6 +57,11 @@ data GPIO = GPIO
     , portRegister      :: String
     , pinRegister       :: String
     , bitName           :: String
+    }
+
+data AnalogInput = AnalogInput
+    { analogName :: String
+    , mux        :: Int
     }
 
 -- For mappings, see http://arduino.cc/en/Hacking/PinMapping168
@@ -86,18 +95,6 @@ pin12 = GPIO "pin12" "DDRB" "PORTB" "PINB" "PB4"
 
 pin13 :: GPIO
 pin13 = GPIO "pin13" "DDRB" "PORTB" "PINB" "PB5"
-
-clock :: Stream Word
-clock = every 10000
-
-every :: Expression Word -> Stream Word
-every limit = timerDelta ~> accumulate ~> keepOverflowing ~> count
-    where
-        accumulate = foldpS (\delta total -> if_ (greater total limit)
-                                                 (total - limit + delta)
-                                                 (total + delta))
-                            0
-        keepOverflowing = filterS (\value -> greater value limit)
 
 uart :: Output Byte
 uart =
@@ -137,6 +134,27 @@ digitalRead gpio = createInput
      end)
     (readBit (pinRegister gpio) (bitName gpio))
 
+a0 :: AnalogInput
+a0 = AnalogInput "a0" 0
+
+analogRead :: AnalogInput -> Stream Word
+analogRead an = createInput
+    (analogName an)
+    (setBit "ADCSRA" "ADEN" $
+     setBit "ADMUX" "REFS0" $
+     setBit "ADCSRA" "ADPS2" $
+     setBit "ADCSRA" "ADPS1" $
+     setBit "ADCSRA" "ADPS0" $
+     end)
+    ((if (testBit (mux an) 3) then setBit else clearBit) "ADMUX" "MUX3" $
+     (if (testBit (mux an) 2) then setBit else clearBit) "ADMUX" "MUX2" $
+     (if (testBit (mux an) 1) then setBit else clearBit) "ADMUX" "MUX1" $
+     (if (testBit (mux an) 0) then setBit else clearBit) "ADMUX" "MUX0" $
+     setBit "ADCSRA" "ADSC" $
+     waitBitCleared "ADCSRA" "ADSC" $
+     readTwoPartWord "ADCL" "ADCH" $
+     end)
+
 timerDelta :: Stream Word
 timerDelta = createInput
     "timer"
@@ -146,3 +164,9 @@ timerDelta = createInput
     (readWord "TCNT1" $
      writeWord "TCNT1" (wordConstant 0) $
      end)
+
+every :: Expression Word -> Stream Word
+every limit = accumulatorConstLimit limit timerDelta ~> count
+
+clock :: Stream Word
+clock = every 10000
