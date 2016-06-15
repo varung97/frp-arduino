@@ -143,28 +143,31 @@ a0 = AnalogInput "a0" 0
 
 analogOutput :: GPIO -> Output Word
 analogOutput gpio =
-  case timer gpio of
-    Just timerGPIO ->
-      let
-        comPortGPIO = case comPort gpio of
-          Just port -> port
-          Nothing -> ""
-        timerOutputGPIO = case timerOutput gpio of
-          Just timerOut -> timerOut
-          Nothing -> ""
-      in
-        createOutput
-            (name gpio)
-            (setBit (directionRegister gpio) (bitName gpio) $
-             setBit (timerGPIO ++ "A") (comPortGPIO) $
-             setBit (timerGPIO ++ "A") ("WGM21") $
-             setBit (timerGPIO ++ "A") ("WGM20") $
-             setBit (timerGPIO ++ "B") ("CS22") $
-             end)
-            (\value ->
-             writeWord (timerOutputGPIO) value $
-             end)
-    Nothing -> error "Pin does not support Analog Output"
+  let
+    timerGPIO =
+      case timer gpio of
+        Just pinTimer -> pinTimer
+        Nothing -> error "Pin does not support Analog Output"
+    comPortGPIO =
+      case comPort gpio of
+        Just port -> port
+        Nothing -> error "Pin does not support Analog Output"
+    timerOutputGPIO =
+      case timerOutput gpio of
+        Just timerOut -> timerOut
+        Nothing -> error "Pin does not support Analog Output"
+  in
+    createOutput
+        (name gpio)
+        (setBit (directionRegister gpio) (bitName gpio) $
+         setBit (timerGPIO ++ "A") (comPortGPIO) $
+         setBit (timerGPIO ++ "A") ("WGM21") $
+         setBit (timerGPIO ++ "A") ("WGM20") $
+         setBit (timerGPIO ++ "B") ("CS22") $
+         end)
+        (\value ->
+         writeWord (timerOutputGPIO) value $
+         end)
 
 analogRead :: AnalogInput -> Stream Word
 analogRead an = createInput
