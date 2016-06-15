@@ -30,6 +30,7 @@ module Arduino.DSL
     , bootup
     , constStream
     , funcToStream
+    , funcToStreamMap
 
     -- * Expressions
     , Expression
@@ -196,6 +197,13 @@ funcToStream :: String -> String -> [String] -> Stream a
 funcToStream name returnType modDependencies =
   Stream $ addStream ("input_" ++ name) body modDependencies
   where body = DAG.Driver [name] (unLLI end) (unLLI $ LLI $ DAG.FunctionCall name returnType)
+
+funcToStreamMap :: String -> String -> [String] -> Stream a -> Stream b
+funcToStreamMap name returnType modDependencies inputStream =
+  Stream $ do
+    inputStreamName <- unStream inputStream
+    streamName <- unStream $ funcToStream name returnType modDependencies
+    addDependency inputStreamName streamName
 
 output2 :: Output a1
         -> Output a2
