@@ -1,10 +1,16 @@
 # frp-arduino
 
-This repo adds supports for arrows to the frp-arduino library. Haskell code written using this library will be compiled to C code meant for use on an Arduino Uno (See Usage for details on how to compile).
+This repo adds supports for the following features to the frp-arduino library:
+<ul>
+<li><a href="http://www.cse.chalmers.se/~rjmh/afp-arrows.pdf">Arrows</a></li>
+<li>Lifting external C functions to Streams</li>
+<li>Ability to output an Analog signal from a pin</li>
+</ul>
 
-In addition, support has been added for lifting external C functions to Streams.
+Haskell code written using this library will be compiled to C code meant for use on an Arduino Uno (See Usage for details on how to compile).
 
 ## Usage
+
 Running `./make fileName` will compile the file and upload to an Arduino Uno on port /dev/cu.usbmodem1411<br>
 Example: To compile Blink.hs, run `./make Blink`
 <br>
@@ -73,12 +79,20 @@ Two functions have been added:
 <br>
 *Type*: `String -> String -> String -> SF a b`
 
+## Analog Output
+
+One function has been added:
+<br>
+<br>
+**analogOutput** : Takes a pin and returns an Output type which can take a Stream of Words and output that Word through the pin.
+<br>
+*Type*: `GPIO -> Output Word`
+
 ## Sources
+
 Arduino library is from the repo frp-arduino/frp-arduino.
 <br>
 Arduino-Makefile libary is from the repo sudar/Arduino-Makefile.
 <br>
 Makefile can be found at rgoulter/arduino-atom-examples/tree/master/blink/atom
 
-Link to a paper on arrows:
-http://www.cse.chalmers.se/~rjmh/afp-arrows.pdf
