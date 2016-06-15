@@ -32,6 +32,7 @@ data Stream = Stream
     , inputs  :: [Identifier]
     , body    :: Body
     , outputs :: [(Int, Identifier)]
+    , modDep :: [Identifier]
     }
     deriving (Show, Eq)
 
@@ -77,6 +78,7 @@ data LLI = WriteBit String String LLI LLI
          | Const String
          | ConstBit Bit
          | InputValue
+         | FunctionCall String String -- Call a function with a given name and return type
          | End
          deriving (Show, Eq)
 

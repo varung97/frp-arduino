@@ -29,6 +29,7 @@ module Arduino.DSL
     , prefixOutput
     , bootup
     , constStream
+    , funcToStream
 
     -- * Expressions
     , Expression
@@ -186,10 +187,15 @@ prefixOutput fn output = Output $ \stream -> do
     output =: fn stream
 
 bootup :: Stream ()
-bootup = Stream $ addStream "bootup" DAG.Bootup
+bootup = Stream $ addStream "bootup" DAG.Bootup []
 
 constStream :: Expression a -> Stream a
 constStream value = mapS (const value) bootup
+
+funcToStream :: String -> String -> [String] -> Stream a
+funcToStream name returnType modDependencies =
+  Stream $ addStream ("input_" ++ name) body modDependencies
+  where body = DAG.Driver [name] (unLLI end) (unLLI $ LLI $ DAG.FunctionCall name returnType)
 
 output2 :: Output a1
         -> Output a2
@@ -404,7 +410,7 @@ first fn = \stream ->
           s2N <- addAnonymousStream $ DAG.Map $ DAG.TupleValue 1 $ DAG.Input 0
           addDependency sN s2N
     let s3 = s1 ~> fn
-    unStream $ mapS2 (\a -> \b -> pack2 (a, b)) s3 s2
+    unStream $ mapS2 (\b c -> pack2 (b, c)) s3 s2
 
 second :: (Stream a -> Stream b) -> (Stream (c, a) -> Stream (c, b))
 second fn = arr swapE >>> first fn >>> arr swapE
@@ -427,7 +433,7 @@ infixr 2 ***
 addAnonymousStream :: DAG.Body -> Action DAG.Identifier
 addAnonymousStream body = do
     name <- buildUniqIdentifier "stream"
-    addStream name body
+    addStream name body []
 
 buildUniqIdentifier :: String -> Action DAG.Identifier
 buildUniqIdentifier baseName = do
@@ -438,12 +444,12 @@ buildUniqIdentifier baseName = do
     where
         inc dag = dag { idCounter = idCounter dag + 1 }
 
-addStream :: DAG.Identifier -> DAG.Body -> Action DAG.Identifier
-addStream name body = do
+addStream :: DAG.Identifier -> DAG.Body -> [DAG.Identifier] -> Action DAG.Identifier
+addStream name body modDependencies = do
     streamTreeState <- get
     unless (DAG.hasStream (dag streamTreeState) name) $ do
         mapM_ addResource (getResources body)
-        modify $ insertStream $ DAG.Stream name [] body []
+        modify $ insertStream $ DAG.Stream name [] body [] modDependencies
     return name
     where
         insertStream :: DAG.Stream -> DAGState -> DAGState
@@ -470,7 +476,7 @@ addResource name = do
 
 createInput :: String -> LLI () -> LLI a -> Stream a
 createInput name initLLI bodyLLI =
-    Stream $ addStream ("input_" ++ name) body
+    Stream $ addStream ("input_" ++ name) body []
     where
         body = DAG.Driver [name] (unLLI initLLI) (unLLI bodyLLI)
 

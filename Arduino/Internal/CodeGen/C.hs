@@ -57,9 +57,11 @@ genStreamsCFile streams = do
     header "#include <avr/io.h>"
     header "#include <util/delay_basic.h>"
     header "#include <stdbool.h>"
+    let sorted = sortStreams streams
+    genModDeps sorted
     header ""
     genCTypes
-    genStreamCFunctions (sortStreams streams) M.empty
+    genStreamCFunctions (sorted) M.empty
     line ""
     block "int main(void) {" $ do
         mapM genInit (streamsInTree streams)
@@ -90,6 +92,20 @@ genCTypes = do
         forM_ [0..n-1] $ \value -> do
             header $ "    void* value" ++ show value ++ ";"
         header $ "};"
+
+genModDeps :: [Stream] -> Gen ()
+genModDeps streams = case streams of
+    [] -> return ()
+    (stream:restStreams) -> do
+        addModDeps $ modDep stream
+        genModDeps restStreams
+
+addModDeps :: [String] -> Gen ()
+addModDeps deps = case deps of
+    x : xs -> do
+      header $ "#include \"" ++ x ++ "\""
+    [] -> do
+      return ()
 
 genStreamCFunctions :: [Stream] -> M.Map String CType -> Gen ()
 genStreamCFunctions streams streamTypeMap = case streams of
@@ -380,6 +396,10 @@ genLLI lli = case lli of
             Low  -> literal CBit "false"
     InputValue -> do
         variable "input_0" CBit
+    (FunctionCall name returnType) -> do
+        x <- genCVariable returnType
+        line $ x ++ " = " ++ name ++ "();"
+        variable x $ cStrType returnType
     End -> do
         return Void
 
@@ -464,6 +484,16 @@ cTypeStr cType = case cType of
     CVoid            -> "void"
     CList _          -> "struct list"
     CTuple itemTypes -> "struct tuple" ++ show (length itemTypes)
+
+cStrType :: String -> CType
+cStrType typ = case typ of
+    "bool"                                    -> CBit
+    "uint8_t"                                 -> CByte
+    "uint16_t"                                -> CWord
+    "void"                                    -> CVoid
+    "int"                                     -> CByte
+    _ -> error "Unsupported types"
+
 
 genCVariable :: String -> Gen String
 genCVariable cType = do

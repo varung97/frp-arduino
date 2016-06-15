@@ -5,6 +5,7 @@ set -e
 EXAMPLE=$1
 TARGET=$2
 OUTPUT_DIR=build-output/$EXAMPLE
+HELPER_DIR=helper-files
 
 if [ "$TARGET" == "clean" ]
 then
@@ -30,8 +31,24 @@ else
         dot -Tpng -odag.png dag.dot
         xdg-open dag.png
     fi
-    avr-gcc -Os -DF_CPU=16000000UL -mmcu=atmega328p -c -o main.o main.c
-    avr-gcc -mmcu=atmega328p main.o -o main.elf
+
+    FILESC=""
+    FILESO=""
+
+    for i in "${@:2}";
+    do
+      FILESC+=$i
+      FILESC+=".c"
+      FILESC+=" "
+      FILESO+=$i
+      FILESO+=".o"
+      FILESO+=" "
+      cp ../../$HELPER_DIR/$i.c ./
+      cp ../../$HELPER_DIR/$i.h ./
+    done
+    
+    avr-gcc -Os -DF_CPU=16000000UL -mmcu=atmega328p -c main.c $FILESC
+    avr-gcc -mmcu=atmega328p main.o $FILESO -o main.elf
     avr-objcopy -O ihex -R .eeprom main.elf main.hex
     avrdude -F -V -c arduino -p ATMEGA328P -P /dev/cu.usbmodem1411 -U flash:w:main.hex
 fi
