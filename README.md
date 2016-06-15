@@ -19,7 +19,7 @@ Example: To compile Blink.hs along with helper-file/test.c, run `./make Blink te
 <br>
 The output is written to build-output/fileName
 
-## Added functionality
+## Arrow functionality
 
 Notation used below:
 <br>
@@ -59,6 +59,19 @@ __***__ : This infix operator takes 2 Stream functions that can act on different
 <br>
 
 The first 3 functions in fact form a minimal set of combinators with which all possible wirings can be expressed. Thus, the latter functions are defined in terms of these 3.
+
+## External Streams
+
+Two functions have been added:
+<br>
+**functionToStream** : Takes a function name, a return type and the name of the module where it is defined (if the module is test.c, then function take "test"). This function assumes the existence of .h files for any module being imported.
+<br>
+*Type*: `String -> String -> String -> Stream a`
+<br>
+<br>
+**functionToStreamMap** : Same inputs as functionToStream, returns a stream transformer that will emit the return value of the external function every time a value is received from the input stream. In other words, maps an input stream to the return value of the external function at that time. Useful if the rate of calling the function needs to be controlled with a clock.
+<br>
+*Type*: `String -> String -> String -> SF a b`
 
 ## Sources
 Arduino library is from the repo frp-arduino/frp-arduino.
