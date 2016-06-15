@@ -2,7 +2,7 @@
 
 This repo adds supports for the following features to the frp-arduino library:
 <ul>
-<li><a href="http://www.cse.chalmers.se/~rjmh/afp-arrows.pdf">Arrows</a></li>
+<li><a href="http://www.cse.chalmers.se/~rjmh/afp-arrows.pdf" target="_blank">Arrows</a></li>
 <li>Lifting external C functions to Streams</li>
 <li>Ability to output an Analog signal from a pin</li>
 </ul>
