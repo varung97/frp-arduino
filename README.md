@@ -29,7 +29,7 @@ The output is written to build-output/fileName
 
 Notation used below:
 <br>
-SF a b = Function which transforms Stream a to Stream b (Stream a -> Stream b)
+`SF a b` = Function which transforms `Stream a` to `Stream b` (`Stream a -> Stream b`)
 
 The arrow functions that have been added are:
 <br>
