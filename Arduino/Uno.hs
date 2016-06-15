@@ -34,6 +34,7 @@ module Arduino.Uno
     , pin13
     -- * Analog input
     , AnalogInput()
+    , analogOutput
     , analogRead
     , a0
     -- * UART
@@ -57,6 +58,9 @@ data GPIO = GPIO
     , portRegister      :: String
     , pinRegister       :: String
     , bitName           :: String
+    , timer             :: Maybe String
+    , comPort           :: Maybe String
+    , timerOutput       :: Maybe String
     }
 
 data AnalogInput = AnalogInput
@@ -67,34 +71,34 @@ data AnalogInput = AnalogInput
 -- For mappings, see http://arduino.cc/en/Hacking/PinMapping168
 
 pin3 :: GPIO
-pin3 = GPIO "pin3" "DDRD" "PORTD" "PIND" "PD3"
+pin3 = GPIO "pin3" "DDRD" "PORTD" "PIND" "PD3" (Just "TCCR2") (Just "COM2B1") (Just "OCR2B")
 
 pin4 :: GPIO
-pin4 = GPIO "pin4" "DDRD" "PORTD" "PIND" "PD4"
+pin4 = GPIO "pin4" "DDRD" "PORTD" "PIND" "PD4" Nothing Nothing Nothing
 
 pin5 :: GPIO
-pin5 = GPIO "pin5" "DDRD" "PORTD" "PIND" "PD5"
+pin5 = GPIO "pin5" "DDRD" "PORTD" "PIND" "PD5" (Just "TCCR0") (Just "COM2B1") (Just "OCR0B")
 
 pin6 :: GPIO
-pin6 = GPIO "pin6" "DDRD" "PORTD" "PIND" "PD6"
+pin6 = GPIO "pin6" "DDRD" "PORTD" "PIND" "PD6" (Just "TCCR0") (Just "COM2A1") (Just "OCR0A")
 
 pin7 :: GPIO
-pin7 = GPIO "pin7" "DDRD" "PORTD" "PIND" "PD7"
+pin7 = GPIO "pin7" "DDRD" "PORTD" "PIND" "PD7" Nothing Nothing Nothing
 
 pin8 :: GPIO
-pin8 = GPIO "pin8" "DDRB" "PORTB" "PINB" "PB0"
+pin8 = GPIO "pin8" "DDRB" "PORTB" "PINB" "PB0" Nothing Nothing Nothing
 
 pin10 :: GPIO
-pin10 = GPIO "pin10" "DDRB" "PORTB" "PINB" "PB2"
+pin10 = GPIO "pin10" "DDRB" "PORTB" "PINB" "PB2" Nothing Nothing Nothing
 
 pin11 :: GPIO
-pin11 = GPIO "pin11" "DDRB" "PORTB" "PINB" "PB3"
+pin11 = GPIO "pin11" "DDRB" "PORTB" "PINB" "PB3" (Just "TCCR2") (Just "COM2A1") (Just "OCR2A")
 
 pin12 :: GPIO
-pin12 = GPIO "pin12" "DDRB" "PORTB" "PINB" "PB4"
+pin12 = GPIO "pin12" "DDRB" "PORTB" "PINB" "PB4" Nothing Nothing Nothing
 
 pin13 :: GPIO
-pin13 = GPIO "pin13" "DDRB" "PORTB" "PINB" "PB5"
+pin13 = GPIO "pin13" "DDRB" "PORTB" "PINB" "PB5" Nothing Nothing Nothing
 
 uart :: Output Byte
 uart =
@@ -136,6 +140,31 @@ digitalRead gpio = createInput
 
 a0 :: AnalogInput
 a0 = AnalogInput "a0" 0
+
+analogOutput :: GPIO -> Output Word
+analogOutput gpio =
+  case timer gpio of
+    Just timerGPIO ->
+      let
+        comPortGPIO = case comPort gpio of
+          Just port -> port
+          Nothing -> ""
+        timerOutputGPIO = case timerOutput gpio of
+          Just timerOut -> timerOut
+          Nothing -> ""
+      in
+        createOutput
+            (name gpio)
+            (setBit (directionRegister gpio) (bitName gpio) $
+             setBit (timerGPIO ++ "A") (comPortGPIO) $
+             setBit (timerGPIO ++ "A") ("WGM21") $
+             setBit (timerGPIO ++ "A") ("WGM20") $
+             setBit (timerGPIO ++ "B") ("CS22") $
+             end)
+            (\value ->
+             writeWord (timerOutputGPIO) value $
+             end)
+    Nothing -> error "Pin does not support Analog Output"
 
 analogRead :: AnalogInput -> Stream Word
 analogRead an = createInput

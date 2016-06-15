@@ -46,7 +46,7 @@ else
       cp ../../$HELPER_DIR/$i.c ./
       cp ../../$HELPER_DIR/$i.h ./
     done
-    
+
     avr-gcc -Os -DF_CPU=16000000UL -mmcu=atmega328p -c main.c $FILESC
     avr-gcc -mmcu=atmega328p main.o $FILESO -o main.elf
     avr-objcopy -O ihex -R .eeprom main.elf main.hex
