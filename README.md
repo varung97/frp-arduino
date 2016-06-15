@@ -1,11 +1,21 @@
 # frp-arduino
 
-This repo adds supports for arrows to the frp-arduino library. Haskell code written using this library will be compiled to C code meant for use on an Arduino Uno (See Usage for details on how to compile)
+This repo adds supports for arrows to the frp-arduino library. Haskell code written using this library will be compiled to C code meant for use on an Arduino Uno (See Usage for details on how to compile).
+
+In addition, support has been added for lifting external C functions to Streams.
 
 ## Usage
-Running `./make fileName` will compile the file and upload to an Arduino Uno on port /dev/cu.usbmodem1411
+Running `./make fileName` will compile the file and upload to an Arduino Uno on port /dev/cu.usbmodem1411<br>
+Example: To compile Blink.hs, run `./make Blink`
+<br>
 <br>
 If the shell throws an error while linking, then first run `./make fileName clean` and then `./make fileName`
+<br>
+<br>
+To compile other c files along with the Haskell file, run `./make HSFileName CFileName1 CFileName2 ...`<br>
+The other c files should be placed in a helper-files directory<br>
+Example: To compile Blink.hs along with helper-file/test.c, run `./make Blink test`
+<br>
 <br>
 The output is written to build-output/fileName
 
