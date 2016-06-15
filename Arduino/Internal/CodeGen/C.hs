@@ -100,11 +100,11 @@ genModDeps streams = case streams of
         addModDeps $ modDep stream
         genModDeps restStreams
 
-addModDeps :: [String] -> Gen ()
-addModDeps deps = case deps of
-    x : xs -> do
-      header $ "#include \"" ++ x ++ "\""
-    [] -> do
+addModDeps :: Maybe String -> Gen ()
+addModDeps modDep = case modDep of
+    Just modName -> do
+      header $ "#include \"" ++ modName ++ ".h\""
+    Nothing -> do
       return ()
 
 genStreamCFunctions :: [Stream] -> M.Map String CType -> Gen ()

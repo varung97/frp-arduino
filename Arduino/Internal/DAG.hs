@@ -32,7 +32,7 @@ data Stream = Stream
     , inputs  :: [Identifier]
     , body    :: Body
     , outputs :: [(Int, Identifier)]
-    , modDep :: [Identifier]
+    , modDep :: Maybe Identifier
     }
     deriving (Show, Eq)
 
