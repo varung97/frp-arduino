@@ -71,14 +71,17 @@ The first 3 functions in fact form a minimal set of combinators with which all p
 Two functions have been added:
 <br>
 <br>
-*Type*: `String -> String -> String -> Stream a`
+*Type*: `String -> CType -> String -> Stream a`
 <br>
-**functionToStream** : Takes a function name, a return type and the name of the module where it is defined (if the module is test.c, then function take "test"). This function assumes the existence of .h files for any module being imported.
+**functionToStream** : Takes a function name, a return type (as a CType - see below) and the name of the module where it is defined (if the module is test.c, then function take "test"). This function assumes the existence of .h files for any module being imported.
 <br>
 <br>
-*Type*: `String -> String -> String -> SF a b`
+*Type*: `String -> CType -> String -> SF a b`
 <br>
 **functionToStreamMap** : Same inputs as functionToStream, returns a stream transformer that will emit the return value of the external function every time a value is received from the input stream. In other words, maps an input stream to the return value of the external function at that time. Useful if the rate of calling the function needs to be controlled with a clock.
+<br>
+
+`CType` = `CBit | CByte | CWord | CVoid | CList CType | CTuple [CType]`
 
 ## Analog Output
 
