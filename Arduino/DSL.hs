@@ -202,7 +202,7 @@ funcToInputStream name returnType impMod =
 funcToStream :: String -> DAG.CType -> String -> Int -> Stream a
 funcToStream name returnType impMod numArgs =
   Stream $ addStream ("input_" ++ name) body $ Just impMod
-  where body = DAG.Map $ DAG.FunctionCall name returnType $ getTupleVals numArgs (DAG.Input 0)
+  where body = DAG.Map $ DAG.FunctionCall name returnType $ getArgVals numArgs (DAG.Input 0)
 
 funcToStreamMap :: String -> DAG.CType -> String -> Int -> (Stream a -> Stream b)
 funcToStreamMap name returnType impMod numArgs = \inputStream ->
@@ -211,11 +211,11 @@ funcToStreamMap name returnType impMod numArgs = \inputStream ->
     streamName <- unStream $ funcToStream name returnType impMod numArgs
     addDependency inputStreamName streamName
 
-getTupleVals :: Int -> DAG.Expression -> [DAG.Expression]
-getTupleVals 0 _ = []
-getTupleVals 1 expr = expr : []
-getTupleVals 2 expr = (DAG.TupleValue 0 expr) : (DAG.TupleValue 1 expr) : []
-getTupleVals x expr = (DAG.TupleValue 0 expr) : getTupleVals (x - 1) (DAG.TupleValue 1 expr)
+getArgVals :: Int -> DAG.Expression -> [DAG.Expression]
+getArgVals 0 _ = []
+getArgVals 1 expr = expr : []
+getArgVals 2 expr = (DAG.TupleValue 0 expr) : (DAG.TupleValue 1 expr) : []
+getArgVals x expr = (DAG.TupleValue 0 expr) : getArgVals (x - 1) (DAG.TupleValue 1 expr)
 
 output2 :: Output a1
         -> Output a2
