@@ -33,14 +33,6 @@ data ResultValue = Value String CType Storage (Maybe String)
 data Storage = Variable
              | Literal
 
-data CType = CBit
-           | CByte
-           | CWord
-           | CVoid
-           | CList CType
-           | CTuple [CType]
-           deriving (Eq, Show)
-
 listSizeCType :: CType
 listSizeCType = CByte
 
@@ -397,9 +389,9 @@ genLLI lli = case lli of
     InputValue -> do
         variable "input_0" CBit
     (FunctionCall name returnType) -> do
-        x <- genCVariable returnType
+        x <- genCVariable $ cTypeStr returnType
         line $ x ++ " = " ++ name ++ "();"
-        variable x $ cStrType returnType
+        variable x returnType
     End -> do
         return Void
 

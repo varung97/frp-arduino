@@ -78,7 +78,7 @@ data LLI = WriteBit String String LLI LLI
          | Const String
          | ConstBit Bit
          | InputValue
-         | FunctionCall String String -- Call a function with a given name and return type
+         | FunctionCall String CType -- Call a function with a given name and return type
          | End
          deriving (Show, Eq)
 
@@ -91,6 +91,14 @@ type Byte = W.Word8
 type Word = W.Word16
 
 type Identifier = String
+
+data CType = CBit
+           | CByte
+           | CWord
+           | CVoid
+           | CList CType
+           | CTuple [CType]
+           deriving (Eq, Show)
 
 emptyStreams :: Streams
 emptyStreams = M.empty

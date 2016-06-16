@@ -193,12 +193,12 @@ bootup = Stream $ addStream "bootup" DAG.Bootup Nothing
 constStream :: Expression a -> Stream a
 constStream value = mapS (const value) bootup
 
-funcToStream :: String -> String -> String -> Stream a
+funcToStream :: String -> DAG.CType -> String -> Stream a
 funcToStream name returnType impMod =
   Stream $ addStream ("input_" ++ name) body $ Just impMod
   where body = DAG.Driver [name] (unLLI end) (unLLI $ LLI $ DAG.FunctionCall name returnType)
 
-funcToStreamMap :: String -> String -> String -> Stream a -> Stream b
+funcToStreamMap :: String -> DAG.CType -> String -> Stream a -> Stream b
 funcToStreamMap name returnType impMod inputStream =
   Stream $ do
     inputStreamName <- unStream inputStream
