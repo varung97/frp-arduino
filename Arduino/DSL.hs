@@ -30,7 +30,7 @@ module Arduino.DSL
     , prefixOutput
     , bootup
     , constStream
-    , funcToStream
+    , funcToInputStream
     , funcToStreamMap
 
     -- * Expressions
@@ -194,12 +194,17 @@ bootup = Stream $ addStream "bootup" DAG.Bootup Nothing
 constStream :: Expression a -> Stream a
 constStream value = mapS (const value) bootup
 
+funcToInputStream :: String -> DAG.CType -> String -> Stream a
+funcToInputStream name returnType impMod =
+  Stream $ addStream ("input_" ++ name) body $ Just impMod
+  where body = DAG.Map $ DAG.FunctionCall name returnType []
+
 funcToStream :: String -> DAG.CType -> String -> Int -> Stream a
 funcToStream name returnType impMod numArgs =
   Stream $ addStream ("input_" ++ name) body $ Just impMod
   where body = DAG.Map $ DAG.FunctionCall name returnType $ getTupleVals numArgs (DAG.Input 0)
 
-funcToStreamMap :: String -> DAG.CType -> String -> Int -> Stream a -> Stream b
+funcToStreamMap :: String -> DAG.CType -> String -> Int -> (Stream a -> Stream b)
 funcToStreamMap name returnType impMod numArgs = \inputStream ->
   Stream $ do
     inputStreamName <- unStream inputStream
