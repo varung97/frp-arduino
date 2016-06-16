@@ -314,6 +314,10 @@ genExpression inputMap static expression = case expression of
             line $ temp ++ " = " ++ cFalse ++ ";"
         line $ "}"
         variable temp cType
+    (FunctionCall name returnType) -> do
+        x <- genCVariable $ cTypeStr returnType
+        line $ x ++ " = " ++ name ++ "();"
+        variable x returnType
 
 genCopy :: String -> String -> CType -> Gen ()
 genCopy destination source cType = case cType of
@@ -388,10 +392,6 @@ genLLI lli = case lli of
             Low  -> literal CBit "false"
     InputValue -> do
         variable "input_0" CBit
-    (FunctionCall name returnType) -> do
-        x <- genCVariable $ cTypeStr returnType
-        line $ x ++ " = " ++ name ++ "();"
-        variable x returnType
     End -> do
         return Void
 

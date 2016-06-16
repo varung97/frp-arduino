@@ -66,6 +66,7 @@ data Expression = Input Int
                 | Greater Expression Expression
                 | Equal Expression Expression
                 | If Expression Expression Expression
+                | FunctionCall String CType -- Call a function with a given name and return type
                 deriving (Show, Eq)
 
 data LLI = WriteBit String String LLI LLI
@@ -78,7 +79,6 @@ data LLI = WriteBit String String LLI LLI
          | Const String
          | ConstBit Bit
          | InputValue
-         | FunctionCall String CType -- Call a function with a given name and return type
          | End
          deriving (Show, Eq)
 

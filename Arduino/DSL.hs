@@ -22,6 +22,7 @@ module Arduino.DSL
     , Stream
     , Output
     , LLI
+    , DAG.CType (..)
     , compileProgram
     , parseProgram
     , def
@@ -196,7 +197,7 @@ constStream value = mapS (const value) bootup
 funcToStream :: String -> DAG.CType -> String -> Stream a
 funcToStream name returnType impMod =
   Stream $ addStream ("input_" ++ name) body $ Just impMod
-  where body = DAG.Driver [name] (unLLI end) (unLLI $ LLI $ DAG.FunctionCall name returnType)
+  where body = DAG.Map $ DAG.FunctionCall name returnType
 
 funcToStreamMap :: String -> DAG.CType -> String -> Stream a -> Stream b
 funcToStreamMap name returnType impMod inputStream =

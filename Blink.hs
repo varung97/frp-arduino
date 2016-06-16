@@ -3,4 +3,4 @@ import Prelude hiding (Word)
 
 main = compileProgram $ do
 
-    analogOutput pin5 =: clock ~> arr ((*) 10)
+    digitalOutput pin5 =: analogRead a0 ~> funcToStreamMap "test" CWord "test"
