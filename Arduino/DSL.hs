@@ -194,17 +194,23 @@ bootup = Stream $ addStream "bootup" DAG.Bootup Nothing
 constStream :: Expression a -> Stream a
 constStream value = mapS (const value) bootup
 
-funcToStream :: String -> DAG.CType -> String -> Stream a
-funcToStream name returnType impMod =
+funcToStream :: String -> DAG.CType -> String -> Int -> Stream a
+funcToStream name returnType impMod numArgs =
   Stream $ addStream ("input_" ++ name) body $ Just impMod
-  where body = DAG.Map $ DAG.FunctionCall name returnType
+  where body = DAG.Map $ DAG.FunctionCall name returnType $ getTupleVals numArgs (DAG.Input 0)
 
-funcToStreamMap :: String -> DAG.CType -> String -> Stream a -> Stream b
-funcToStreamMap name returnType impMod inputStream =
+funcToStreamMap :: String -> DAG.CType -> String -> Int -> Stream a -> Stream b
+funcToStreamMap name returnType impMod numArgs = \inputStream ->
   Stream $ do
     inputStreamName <- unStream inputStream
-    streamName <- unStream $ funcToStream name returnType impMod
+    streamName <- unStream $ funcToStream name returnType impMod numArgs
     addDependency inputStreamName streamName
+
+getTupleVals :: Int -> DAG.Expression -> [DAG.Expression]
+getTupleVals 0 _ = []
+getTupleVals 1 expr = expr : []
+getTupleVals 2 expr = (DAG.TupleValue 0 expr) : (DAG.TupleValue 1 expr) : []
+getTupleVals x expr = (DAG.TupleValue 0 expr) : getTupleVals (x - 1) (DAG.TupleValue 1 expr)
 
 output2 :: Output a1
         -> Output a2
@@ -458,7 +464,7 @@ addStream name body modDependencies = do
     streamTreeState <- get
     unless (DAG.hasStream (dag streamTreeState) name) $ do
         mapM_ addResource (getResources body)
-        modify $ insertStream $ DAG.Stream name [] body [] Nothing
+        modify $ insertStream $ DAG.Stream name [] body [] modDependencies
     return name
     where
         insertStream :: DAG.Stream -> DAGState -> DAGState

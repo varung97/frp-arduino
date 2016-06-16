@@ -2,5 +2,5 @@ import Arduino.Uno
 import Prelude hiding (Word)
 
 main = compileProgram $ do
-
-    digitalOutput pin5 =: analogRead a0 ~> funcToStreamMap "test" CWord "test"
+    let stream = clock ~> (arr id &&& arr ((+)1) &&& arr ((+)2))
+    analogOutput pin5 =: stream ~> funcToStreamMap "test" CWord "test" 3

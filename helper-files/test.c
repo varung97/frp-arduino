@@ -4,7 +4,6 @@
 
 int test();
 
-int test() {
-  srand(time(NULL));
-  return rand() % 2;
+int test(uint16_t arg, uint16_t arg1, uint16_t arg2) {
+  return ((arg * arg1 * arg2) % 10) * 10;
 }

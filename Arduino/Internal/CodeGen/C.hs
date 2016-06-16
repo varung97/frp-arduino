@@ -250,12 +250,12 @@ genExpression inputMap static expression = case expression of
     (TupleValue n tuple) -> do
         (Value name (CTuple cTypes) _ Nothing) <- genExpression inputMap static tuple
         let cType = cTypes !! n
-        let res = concat [ "*"
+        let res = concat [ "(*"
                          , "((" ++ cTypeStr cType ++ "*)"
                          , name
                          , ".value"
                          , show n
-                         , ")"
+                         , "))"
                          ]
         variable res cType
     (TupleConstant values) -> do
@@ -314,10 +314,22 @@ genExpression inputMap static expression = case expression of
             line $ temp ++ " = " ++ cFalse ++ ";"
         line $ "}"
         variable temp cType
-    (FunctionCall name returnType) -> do
+    (FunctionCall name returnType args) -> do
         x <- genCVariable $ cTypeStr returnType
-        line $ x ++ " = " ++ name ++ "();"
+        arguments <- genArgs inputMap static args
+        line $ x ++ " = " ++ name ++ "(" ++ arguments ++ ");"
         variable x returnType
+
+genArgs :: M.Map Int CType -> Bool -> [Expression] -> Gen String
+genArgs inputMap static [] = do
+    return ""
+genArgs inputMap static (arg:[]) = do
+    (Value name _ _ Nothing) <- genExpression inputMap static arg
+    return name
+genArgs inputMap static (arg:args) = do
+    (Value name _ _ _) <- genExpression inputMap static arg
+    remainingNames <- genArgs inputMap static args
+    return $ name ++ ", " ++ remainingNames
 
 genCopy :: String -> String -> CType -> Gen ()
 genCopy destination source cType = case cType of
