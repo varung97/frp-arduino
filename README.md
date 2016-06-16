@@ -55,12 +55,12 @@ The arrow functions that have been added are:
 <br>
 *Type*: `SF a b -> SF a c -> SF a (b, c)`
 <br>
-**&&&** : This infix operator takes 2 Stream functions that act on the same input type and returns a Stream function that applies both functions to an input Stream, giving a Stream of pairs containing the outputs
+**&&&** : This infix operator takes 2 Stream functions that act on the same input type and returns a Stream function that applies both functions to an input Stream, giving a Stream of pairs containing the outputs. It is right-associative.
 <br>
 <br>
 *Type*: `SF a b -> SF c d -> SF (a, c) (b, d)`
 <br>
-__***__ : This infix operator takes 2 Stream functions that can act on different input types and returns a Stream function that takes a Stream of pairs and applies the first function to the first value in the pair and the second function to the second value in the pair
+__***__ : This infix operator takes 2 Stream functions that can act on different input types and returns a Stream function that takes a Stream of pairs and applies the first function to the first value in the pair and the second function to the second value in the pair. It is right-associative.
 <br>
 <br>
 
@@ -73,12 +73,12 @@ Two functions have been added:
 <br>
 *Type*: `String -> CType -> String -> Stream a`
 <br>
-**functionToStream** : Takes a function name, a return type (as a CType - see below) and the name of the module where it is defined (if the module is test.c, then function take "test"). This function assumes the existence of .h files for any module being imported.
+**functionToInputStream** : Takes a function name, a return type (as a CType - see below) and the name of the module where it is defined (if the module is test.c, then function take "test"). This function assumes the existence of .h files for any module being imported. It calls the external function every clock cycle, and forms a stream of the results. (The external function must have no arguments)
 <br>
 <br>
-*Type*: `String -> CType -> String -> SF a b`
+*Type*: `String -> CType -> String -> Int -> SF a b`
 <br>
-**functionToStreamMap** : Same inputs as functionToStream, returns a stream transformer that will emit the return value of the external function every time a value is received from the input stream. In other words, maps an input stream to the return value of the external function at that time. Useful if the rate of calling the function needs to be controlled with a clock.
+**functionToStreamMap** : This function allows passing arguments to an external function from a Stream. The first three parameters of this function are the same as for `functionToInputStream`. It also takes an integer representing the number of arguments that the external function accepts. If this is 0, then the external function will simply be called each time the input stream emits a value. If 1, then the it will be called with each value of the input stream. If 2 or more, then it expects the input stream to be in the form of nested 2-tuples - like (arg1, arg2) or (arg1, (arg2, arg3)) - with the nested tuples forming the second value of the parent tuple.
 <br>
 
 `CType` = `CBit | CByte | CWord | CVoid | CList CType | CTuple [CType]`
