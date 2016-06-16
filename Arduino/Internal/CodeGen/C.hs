@@ -477,16 +477,6 @@ cTypeStr cType = case cType of
     CList _          -> "struct list"
     CTuple itemTypes -> "struct tuple" ++ show (length itemTypes)
 
-cStrType :: String -> CType
-cStrType typ = case typ of
-    "bool"                                    -> CBit
-    "uint8_t"                                 -> CByte
-    "uint16_t"                                -> CWord
-    "void"                                    -> CVoid
-    "int"                                     -> CByte
-    _ -> error "Unsupported types"
-
-
 genCVariable :: String -> Gen String
 genCVariable cType = do
     l <- label
