@@ -92,6 +92,29 @@ One function has been added:
 <br>
 **analogOutput** : Takes a pin and returns an Output type which can take a Stream of Words and output that Word through the pin.
 
+## Miscellaneous functions
+
+The following functions have been included:
+<br>
+*Type*: `Expression Word -> Expression Word -> Expression Word`
+<br>
+**intDiv** : This function carries out integer division
+<br>
+<br>
+*Type*: `Expression Word -> Expression Word -> Expression Word`
+<br>
+**intMod** : This function takes the modulus of two numbers
+<br>
+<br>
+*Type*: `Expression Word -> Expression Word -> Expression Word`
+<br>
+**intExp** : This function raises an integer to the power of another
+<br>
+<br>
+*Type*: `[Expression a] -> Expression [a]`
+<br>
+**convToList** : This function converts a list of expressions to an expression of a list
+
 ## Sources
 
 Arduino library is from the repo frp-arduino/frp-arduino.
