@@ -35,6 +35,9 @@ module Arduino.DSL
 
     -- * Expressions
     , Expression
+    , intDiv
+    , intMod
+    , intExp
 
     -- ** Bits
     , DAG.Bit
@@ -63,6 +66,7 @@ module Arduino.DSL
     , unpack6
     , output2
     , output6
+    , convToList
 
     -- ** Misc
     , unit
@@ -95,9 +99,11 @@ module Arduino.DSL
 
     -- ** Syntactic sugar
     , (~>)
+    , (<~)
 
     -- ** Arrow functions
     , (>>>)
+    , (<<<)
     , arr
     , first
     , second
@@ -154,6 +160,15 @@ instance Num (Expression a) where
     abs = error "abs not yet implemented"
     signum = error "signum not yet implemented"
     fromInteger value = Expression $ DAG.WordConstant $ fromIntegral value
+
+intDiv :: Expression DAG.Word -> Expression DAG.Word -> Expression DAG.Word
+intDiv left right = Expression $ DAG.Div (unExpression left) (unExpression right)
+
+intMod :: Expression DAG.Word -> Expression DAG.Word -> Expression DAG.Word
+intMod left right = Expression $ DAG.Mod (unExpression left) (unExpression right)
+
+intExp :: Expression DAG.Word -> Expression DAG.Word -> Expression DAG.Word
+intExp base index = Expression $ DAG.Exp (unExpression base) (unExpression index)
 
 compileProgram :: Action a -> IO ()
 compileProgram action = do
@@ -249,8 +264,12 @@ output6 output1 output2 output3 output4 output5 output6 =
     let outputStream = fn (Stream (return streamName))
     unStream $ outputStream
 
+(<~) :: (Stream a -> Stream b) -> Stream a -> Stream b
+(<~) = flip (~>)
+
 -- To give it a lower precedence than the arrow operators
 infixl 1 ~>
+infixl 1 <~
 
 -- | Similar to map in Haskell. \"S\" is for stream.
 mapS :: (Expression a -> Expression b) -> Stream a -> Stream b
@@ -337,6 +356,9 @@ flattenS stream = Stream $ do
     where
         expression = DAG.Flatten $ DAG.Input 0
 
+convToList :: [Expression a] -> Expression [a]
+convToList = Expression . DAG.ListConstant . map unExpression
+
 unit :: Expression ()
 unit = Expression $ DAG.Unit
 
@@ -414,7 +436,11 @@ bitHigh = Expression $ DAG.BitConstant DAG.High
 (>>>) :: (Stream a -> Stream b) -> (Stream b -> Stream c) -> (Stream a -> Stream c)
 f >>> g = \str -> str ~> f ~> g
 
+(<<<) :: (Stream b -> Stream c) -> (Stream a -> Stream b) -> (Stream a -> Stream c)
+(<<<) = flip (>>>)
+
 infixr 3 >>>
+infixr 3 <<<
 
 arr :: (Expression a -> Expression b) -> (Stream a -> Stream b)
 arr = mapS

@@ -63,6 +63,9 @@ data Expression = Input Int
                 | Add Expression Expression
                 | Sub Expression Expression
                 | Mul Expression Expression
+                | Div Expression Expression
+                | Mod Expression Expression
+                | Exp Expression Expression
                 | Greater Expression Expression
                 | Equal Expression Expression
                 | If Expression Expression Expression

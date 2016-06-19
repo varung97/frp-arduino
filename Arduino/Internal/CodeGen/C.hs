@@ -49,6 +49,7 @@ genStreamsCFile streams = do
     header "#include <avr/io.h>"
     header "#include <util/delay_basic.h>"
     header "#include <stdbool.h>"
+    header "#include <math.h>"
     let sorted = sortStreams streams
     genModDeps sorted
     header ""
@@ -223,6 +224,18 @@ genExpression inputMap static expression = case expression of
         (Value cLeft  CWord _ Nothing) <- genExpression inputMap static left
         (Value cRight CWord _ Nothing) <- genExpression inputMap static right
         literal CWord $ "(" ++ cLeft ++ " * " ++ cRight ++ ")"
+    (Div left right) -> do
+        (Value cLeft  CWord _ Nothing) <- genExpression inputMap static left
+        (Value cRight CWord _ Nothing) <- genExpression inputMap static right
+        literal CWord $ "(" ++ cLeft ++ " / " ++ cRight ++ ")"
+    (Mod left right) -> do
+        (Value cLeft  CWord _ Nothing) <- genExpression inputMap static left
+        (Value cRight CWord _ Nothing) <- genExpression inputMap static right
+        literal CWord $ "(" ++ cLeft ++ " % " ++ cRight ++ ")"
+    (Exp left right) -> do
+        (Value cLeft  CWord _ Nothing) <- genExpression inputMap static left
+        (Value cRight CWord _ Nothing) <- genExpression inputMap static right
+        literal CWord $ "(pow(" ++ cLeft ++ ", " ++ cRight ++ "))"
     (Input value) -> do
         variable ("input_" ++ show value) (inputMap M.! value)
     Unit -> do
