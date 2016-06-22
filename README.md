@@ -79,12 +79,17 @@ Two functions have been added:
 <br>
 *Type*: `String -> CType -> String -> Stream a`
 <br>
-**functionToInputStream** : Takes a function name, a return type (as a CType - see below) and the name of the module where it is defined (if the module is test.c, then function take "test"). This function assumes the existence of .h files for any module being imported. It calls the external function every clock cycle, and forms a stream of the results. (The external function must have no arguments)
+**functionToInputStream** : Takes a function name, a return type (as a CType - see below) and the name of the module where it is defined (if the module is test.c, then function takes "test"). This function assumes the existence of .h files for any module being imported. It calls the external function every clock cycle, and forms a stream of the results. (The external function must have no arguments)
 <br>
 <br>
 *Type*: `String -> CType -> String -> Int -> SF a b`
 <br>
 **functionToStreamMap** : This function allows passing arguments to an external function from a Stream. The first three parameters of this function are the same as for `functionToInputStream`. It also takes an integer representing the number of arguments that the external function accepts. If this is 0, then the external function will simply be called each time the input stream emits a value. If 1, then the it will be called with each value of the input stream. If 2 or more, then it expects the input stream to be in the form of nested 2-tuples - like (arg1, arg2) or (arg1, (arg2, arg3)) - with the nested tuples forming the second value of the parent tuple.
+<br>
+<br>
+*Type*: `Output ()`
+<br>
+**nullOutput** : This function creates a null output. It is useful when calling an external function that has a void return type. In such a case, pass the stream calling the function to `nullOutput` using `=:`.
 <br>
 
 `CType` = `CBit | CByte | CWord | CVoid | CList CType | CTuple [CType]`
