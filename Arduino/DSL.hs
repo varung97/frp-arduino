@@ -28,6 +28,7 @@ module Arduino.DSL
     , def
     , (=:)
     , prefixOutput
+    , nullOutput
     , bootup
     , constStream
     , funcToInputStream
@@ -202,6 +203,11 @@ infixr 0 =:
 prefixOutput :: (Stream b -> Stream a) -> Output a -> Output b
 prefixOutput fn output = Output $ \stream -> do
     output =: fn stream
+
+nullOutput :: Output ()
+nullOutput = Output $ \stream -> do
+  streamName <- unStream stream
+  return ()
 
 bootup :: Stream ()
 bootup = Stream $ addStream "bootup" DAG.Bootup Nothing

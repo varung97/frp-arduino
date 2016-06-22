@@ -1,9 +1,15 @@
-#include "test.h"
+#include <avr/io.h>
+#include <util/delay_basic.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <time.h>
+#include "test1.h"
 
-int test1();
-
-int test1() {
-  return 0;
+void test1(uint16_t arg) {
+  DDRD |= (1 << PD5);
+  if (arg) {
+    PORTD |= (1 << PD5);
+  } else {
+    PORTD &= ~(1 << PD5);
+  }
 }

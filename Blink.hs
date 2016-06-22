@@ -6,13 +6,16 @@ main = compileProgram $ do
     -- digitalOutput pin3 =: digitalRead pin10 ~> invert
     -- digitalOutput pin4 =: digitalRead pin11 ~> invert
     -- digitalOutput pin5 =: digitalRead pin12 ~> invert
-    output3 (digitalOutput pin3) (digitalOutput pin4) (digitalOutput pin5) =:
-      analogRead a0 ~>
-      (arr $ (`intDiv` 128)) ~>
-      (arr getBit1 &&&
-       arr getBit2 &&&
-       arr getBit3
-       )
+    -- output3 (digitalOutput pin3) (digitalOutput pin4) (digitalOutput pin5) =:
+    --   analogRead a0 ~>
+    --   (arr $ (`intDiv` 128)) ~>
+    --   (arr getBit1 &&&
+    --    arr getBit2 &&&
+    --    arr getBit3
+    --    )
+    let stream = digitalRead pin10 ~> invert
+    -- digitalOutput pin5 =: stream
+    nullOutput =: funcToStreamMap "test1" CVoid "test1" 1 stream
 
 output3 :: Output a1 -> Output a2 -> Output a3 -> Output (a1, (a2, a3))
 output3 out1 out2 out3 = output2 out1 $ output2 out2 out3

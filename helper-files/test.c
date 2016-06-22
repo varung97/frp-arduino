@@ -1,9 +1,9 @@
-#include "test.h"
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <time.h>
+#include "test.h"
 
-int test();
-
-int test(uint16_t arg, uint16_t arg1, uint16_t arg2) {
-  return ((arg * arg1 * arg2) % 10) * 10;
+bool test(uint16_t arg, bool arg1) {
+  return (arg % 2) || arg1;
 }

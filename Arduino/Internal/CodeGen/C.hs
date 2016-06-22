@@ -330,8 +330,13 @@ genExpression inputMap static expression = case expression of
     (FunctionCall name returnType args) -> do
         x <- genCVariable $ cTypeStr returnType
         arguments <- genArgs inputMap static args
-        line $ x ++ " = " ++ name ++ "(" ++ arguments ++ ");"
-        variable x returnType
+        case returnType of
+          CVoid -> do
+            line $ name ++ "(" ++ arguments ++ ");"
+            return Void
+          _ -> do
+            line $ x ++ "=" ++ name ++ "(" ++ arguments ++ ");"
+            variable x returnType
 
 genArgs :: M.Map Int CType -> Bool -> [Expression] -> Gen String
 genArgs inputMap static [] = do
@@ -492,6 +497,7 @@ resultType vars = case vars of
 extract (Value _ cType _ _) = cType
 extract (FilterVariable _ cType _) = cType
 extract (ToFlatVariable _ cType) = cType
+extract (Void) = CVoid
 
 cTypeStr :: CType -> String
 cTypeStr cType = case cType of
@@ -503,10 +509,14 @@ cTypeStr cType = case cType of
     CTuple itemTypes -> "struct tuple" ++ show (length itemTypes)
 
 genCVariable :: String -> Gen String
-genCVariable cType = do
-    l <- label
-    header $ cType ++ " " ++ l ++ ";"
-    return l
+genCVariable cType =
+  case cType of
+    "void" -> do
+      return ""
+    _ -> do
+      l <- label
+      header $ cType ++ " " ++ l ++ ";"
+      return l
 
 genStaticCVariable :: String -> String -> Gen String
 genStaticCVariable cType value = do
