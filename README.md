@@ -11,6 +11,12 @@ Haskell code written using this library will be compiled to C code meant for use
 
 ## Usage
 
+Download the Arduino-Makefile library from https://github.com/sudar/Arduino-Makefile. To do so, run `git clone https://github.com/sudar/Arduino-Makefile.git` in the terminal.
+<br>
+<br>
+Also needed is avr-gcc and avrdude. Can be installed by running `brew install avr-gcc` and `brew install avrdude` on Mac and `yum install arduino-core` on Linux (hopefully :P).
+<br>
+<br>
 Running `./make fileName` will compile the file and upload to an Arduino Uno on port /dev/cu.usbmodem1411<br>
 Example: To compile Blink.hs, run `./make Blink`
 <br>
