@@ -46,7 +46,7 @@ The arrow functions that have been added are:
 <br>
 *Type*: `(Expression a -> Expression b) -> SF a b`
 <br>
-**arr** : This function take a normal function and lifts it to Streams. The function must act on Expression types (for conversion to the DSL)
+**arr** : This function takes a normal function and lifts it to Streams. The function must act on Expression types (for conversion to the DSL)
 <br>
 <br>
 *Type*: `SF a b -> SF (a, c) (b, c)`
