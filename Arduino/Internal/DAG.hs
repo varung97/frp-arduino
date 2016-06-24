@@ -66,10 +66,14 @@ data Expression = Input Int
                 | Div Expression Expression
                 | Mod Expression Expression
                 | Exp Expression Expression
+                | ShiftR Expression Expression
+                | BitwiseAnd Expression Expression
+                | And Expression Expression
                 | Greater Expression Expression
                 | Equal Expression Expression
                 | If Expression Expression Expression
-                | FunctionCall String CType [Expression] -- Call a function with a given name and return type
+                | FunctionCall String CType [Expression] -- Call a function with a given name, return type and arguments
+                | ConcatLists Expression Expression
                 deriving (Show, Eq)
 
 data LLI = WriteBit String String LLI LLI

@@ -236,6 +236,18 @@ genExpression inputMap static expression = case expression of
         (Value cLeft  CWord _ Nothing) <- genExpression inputMap static left
         (Value cRight CWord _ Nothing) <- genExpression inputMap static right
         literal CWord $ "(pow(" ++ cLeft ++ ", " ++ cRight ++ "))"
+    (ShiftR left right) -> do
+        (Value cLeft  _ _ Nothing) <- genExpression inputMap static left
+        (Value cRight _ _ Nothing) <- genExpression inputMap static right
+        literal CWord $ "(" ++ cLeft ++ " >> " ++ cRight ++ ")"
+    (BitwiseAnd left right) -> do
+        (Value cLeft  _ _ Nothing) <- genExpression inputMap static left
+        (Value cRight _ _ Nothing) <- genExpression inputMap static right
+        literal CWord $ "(" ++ cLeft ++ " & " ++ cRight ++ ")"
+    (And left right) -> do
+        (Value cLeft  CBit _ Nothing) <- genExpression inputMap static left
+        (Value cRight CBit _ Nothing) <- genExpression inputMap static right
+        literal CBit $ "(" ++ cLeft ++ " && " ++ cRight ++ ")"
     (Input value) -> do
         variable ("input_" ++ show value) (inputMap M.! value)
     Unit -> do
@@ -337,6 +349,17 @@ genExpression inputMap static expression = case expression of
           _ -> do
             line $ x ++ "=" ++ name ++ "(" ++ arguments ++ ");"
             variable x returnType
+    (ConcatLists list1 list2) -> do
+        (Value list1name (CList cType) _ _) <- genExpression inputMap static list1
+        (Value list2name (CList cType) _ _) <- genExpression inputMap static list2
+        i <- genCVariable (cTypeStr listSizeCType)
+        block ("for (" ++ i ++ " = 0; " ++ i ++ " < " ++ list2name ++ ".size; " ++ i ++ "++) {") $ do
+            line $ "((" ++ cTypeStr cType ++ "*)" ++ list1name ++ ".values)[" ++ i ++ " + " ++ list1name ++ ".size] = "
+                    ++ "((" ++ cTypeStr cType ++ "*)" ++ list2name ++ ".values)[" ++ i ++ "];"
+            -- generateCall outputStreamName ("((" ++ cTypeStr cType ++ "*)" ++ name ++ ".values)[" ++ i ++ "]")
+        line "}"
+        line $ list1name ++ ".size += " ++ list2name ++ ".size;"
+        variable list1name (CList cType)
 
 genArgs :: M.Map Int CType -> Bool -> [Expression] -> Gen String
 genArgs inputMap static [] = do
@@ -352,13 +375,13 @@ genArgs inputMap static (arg:args) = do
 genCopy :: String -> String -> CType -> Gen ()
 genCopy destination source cType = case cType of
     CTuple items -> forM_ (zip [0..] items) $ \(n, itemType) -> do
-        let drill x = concat [ "*"
+        let drill x = concat [ "(*"
                              , "("
                              , "(" ++ cTypeStr itemType ++ "*)"
                              , x
                              , ".value"
                              , show n
-                             , ")"
+                             , "))"
                              ]
         genCopy (drill destination) (drill source) itemType
     _ -> line $ destination ++ " = " ++ source ++ ";"

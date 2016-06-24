@@ -45,6 +45,7 @@ module Arduino.Uno
     , timerDelta
     , every
     , clock
+    , timeSecond
     ) where
 
 import Arduino.DSL
@@ -202,3 +203,6 @@ every limit = accumulatorConstLimit limit timerDelta ~> count
 
 clock :: Stream Word
 clock = every 10000
+
+timeSecond :: Expression Word
+timeSecond = 16000

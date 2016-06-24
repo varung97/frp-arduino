@@ -1,38 +1,72 @@
 import Arduino.Uno
+import qualified Arduino.Library.LCD as LCD
 import Prelude hiding (Word)
 
 main = compileProgram $ do
-    -- analogOutput pin11 =: clock ~> modStream 180
-    -- digitalOutput pin3 =: digitalRead pin10 ~> invert
-    -- digitalOutput pin4 =: digitalRead pin11 ~> invert
-    -- digitalOutput pin5 =: digitalRead pin12 ~> invert
-    -- output3 (digitalOutput pin3) (digitalOutput pin4) (digitalOutput pin5) =:
-    --   analogRead a0 ~>
-    --   (arr $ (`intDiv` 128)) ~>
-    --   (arr getBit1 &&&
-    --    arr getBit2 &&&
-    --    arr getBit3
-    --    )
-    let stream = digitalRead pin10 ~> invert
-    -- digitalOutput pin5 =: stream
-    nullOutput =: funcToStreamMap "test1" CVoid "test1" 1 stream
 
-output3 :: Output a1 -> Output a2 -> Output a3 -> Output (a1, (a2, a3))
-output3 out1 out2 out3 = output2 out1 $ output2 out2 out3
+    -- let inputs = pack2Stream (every timeSecond) (pack2Stream (every timeSecond ~> liftStreamToMap (digitalRead pin10)) (every timeSecond ~> liftStreamToMap (digitalRead pin11)))
+    let inputs = every timeSecond ~> (arr id &&& liftStreamToMap (digitalRead pin10) &&& liftStreamToMap (digitalRead pin11))
+    setupLCD $ inputs ~> stopwatch ~> arr extractTime ~> arr formatNumber ~> arr prependSpecial ~> flattenS ~> mapS statusText ~> flattenS
+    -- uart =: inputs ~> stopwatch ~> arr extractTime ~> uartConvert
 
-getBit1 :: Expression Word -> Expression Bit
-getBit1 = numToBit . (`intDiv` 4)
+stopwatch :: Stream (Word, (Bit, Bit)) -> Stream (Word, (Bit, Word))
+stopwatch = foldpS increment (pack2 (0, pack2 (bitHigh, 1)))
 
-getBit2 :: Expression Word -> Expression Bit
-getBit2 = numToBit . (`intDiv` 2) . (`intMod` 4)
+increment :: Expression (Word, (Bit, Bit)) -> Expression (Word, (Bit, Word)) -> Expression (Word, (Bit, Word))
+increment action state =
+  let
+    (clockVal, inputs) = unpack2 action
+    (start, stop) = unpack2 inputs
+    (val, state') = unpack2 state
+    (running, oldClock) = unpack2 state'
+    running' = if_ (isHigh stop) (bitLow) (running)
+    running'' = if_ (isHigh start) (bitHigh) (running')
+    val' = if_ (greater clockVal oldClock)
+      (if_ (isHigh running'')
+        (val + 1)
+        (val)
+      )
+      (val)
+  in
+    pack2 (val', pack2 (running'', clockVal))
 
-getBit3 :: Expression Word -> Expression Bit
-getBit3 = numToBit . (`intMod` 2)
+extractTime :: Expression (Word, a) -> Expression Word
+extractTime state =
+  let (time, _) = unpack2 state
+  in time
 
-numToBit :: Expression Word -> Expression Bit
-numToBit = boolToBit . (`greater` 0)
+uartConvert :: Stream Word -> Stream Byte
+uartConvert stream = stream ~> mapSMany formatDelta ~> flattenS
 
-modStream :: Expression Word -> Expression Word -> Stream Word -> Stream Word
-modStream val amount = foldpS (\_ -> increment) 0
-  where
-    increment state = if_ (greater (state + amount) val) (state + amount - val) (state + amount)
+formatDelta :: Expression Word -> [Expression [Byte]]
+formatDelta delta = [ formatNumber delta
+                    , formatString "\r\n"
+                    ]
+
+prependSpecial :: Expression [Byte] -> Expression [Byte]
+prependSpecial = concatLists (convToExprList [200])
+
+statusText :: Expression Byte -> Expression [LCD.Command]
+statusText val =
+  if_ (isEqual val 200)
+    (convToExprList $
+      concat
+        [ LCD.position 1 0
+        ]
+    )
+    (convToExprList $
+      concat
+        [ LCD.byteText val
+        ]
+    )
+
+setupLCD :: Stream LCD.Command -> Action ()
+setupLCD streams = do
+    LCD.output rs d4 d5 d6 d7 enable =: streams
+    where
+        rs     = digitalOutput pin3
+        d4     = digitalOutput pin5
+        d5     = digitalOutput pin6
+        d6     = digitalOutput pin7
+        d7     = digitalOutput pin8
+        enable = digitalOutput pin4

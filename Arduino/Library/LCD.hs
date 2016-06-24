@@ -20,6 +20,7 @@ module Arduino.Library.LCD
     , output
     , position
     , text
+    , byteText
     ) where
 
 import Arduino.DSL
@@ -126,3 +127,46 @@ command commandType b3 b2 b1 b0 delay =
         bitFromValue :: Int -> Expression Bit
         bitFromValue 0 = bitLow
         bitFromValue 1 = bitHigh
+
+byteText :: Expression Byte -> [Expression Command]
+byteText = byteExprToCommands Data
+
+byteExprToCommands :: CommandType -> Expression Byte -> [Expression Command]
+byteExprToCommands commandType byte =
+    [ commandExpr commandType (bit7 byte) (bit6 byte) (bit5 byte) (bit4 byte) 100
+    , commandExpr commandType (bit3 byte) (bit2 byte) (bit1 byte) (bit0 byte) 100
+    ]
+    where
+        bit0 = getBitExpr 0
+        bit1 = getBitExpr 1
+        bit2 = getBitExpr 2
+        bit3 = getBitExpr 3
+        bit4 = getBitExpr 4
+        bit5 = getBitExpr 5
+        bit6 = getBitExpr 6
+        bit7 = getBitExpr 7
+
+getBitExpr :: Expression Word -> Expression Byte -> Expression Byte
+getBitExpr bit number = (number `byteShiftR` bit) `byteBitWiseAnd` 0x1
+
+commandExpr :: CommandType
+            -> Expression Byte
+            -> Expression Byte
+            -> Expression Byte
+            -> Expression Byte
+            -> Word
+            -> Expression Command
+commandExpr commandType b3 b2 b1 b0 delay =
+    pack6 ( typeToBit commandType
+          , bitFromValue b3
+          , bitFromValue b2
+          , bitFromValue b1
+          , bitFromValue b0
+          , fromIntegral delay
+          )
+    where
+        typeToBit :: CommandType -> Expression Bit
+        typeToBit Command = bitLow
+        typeToBit Data = bitHigh
+        bitFromValue :: Expression Byte -> Expression Bit
+        bitFromValue val = boolToBit $ isEqual val 1

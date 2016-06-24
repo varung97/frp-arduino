@@ -33,12 +33,17 @@ module Arduino.DSL
     , constStream
     , funcToInputStream
     , funcToStreamMap
+    , liftStreamToMap
 
     -- * Expressions
     , Expression
-    , intDiv
-    , intMod
-    , intExp
+    , wordDiv
+    , wordMod
+    , wordExp
+    , wordShiftR
+    , wordBitWiseAnd
+    , byteShiftR
+    , byteBitWiseAnd
 
     -- ** Bits
     , DAG.Bit
@@ -67,7 +72,9 @@ module Arduino.DSL
     , unpack6
     , output2
     , output6
-    , convToList
+    , convToExprList
+    , convFromExprList
+    , concatLists
 
     -- ** Misc
     , unit
@@ -162,14 +169,29 @@ instance Num (Expression a) where
     signum = error "signum not yet implemented"
     fromInteger value = Expression $ DAG.WordConstant $ fromIntegral value
 
-intDiv :: Expression DAG.Word -> Expression DAG.Word -> Expression DAG.Word
-intDiv left right = Expression $ DAG.Div (unExpression left) (unExpression right)
+wordDiv :: Expression DAG.Word -> Expression DAG.Word -> Expression DAG.Word
+wordDiv left right = Expression $ DAG.Div (unExpression left) (unExpression right)
 
-intMod :: Expression DAG.Word -> Expression DAG.Word -> Expression DAG.Word
-intMod left right = Expression $ DAG.Mod (unExpression left) (unExpression right)
+wordMod :: Expression DAG.Word -> Expression DAG.Word -> Expression DAG.Word
+wordMod left right = Expression $ DAG.Mod (unExpression left) (unExpression right)
 
-intExp :: Expression DAG.Word -> Expression DAG.Word -> Expression DAG.Word
-intExp base index = Expression $ DAG.Exp (unExpression base) (unExpression index)
+wordExp :: Expression DAG.Word -> Expression DAG.Word -> Expression DAG.Word
+wordExp base index = Expression $ DAG.Exp (unExpression base) (unExpression index)
+
+wordShiftR :: Expression DAG.Word -> Expression DAG.Word -> Expression DAG.Word
+wordShiftR left right = Expression $ DAG.ShiftR (unExpression left) (unExpression right)
+
+wordBitWiseAnd :: Expression DAG.Word -> Expression DAG.Word -> Expression DAG.Word
+wordBitWiseAnd left right = Expression $ DAG.BitwiseAnd (unExpression left) (unExpression right)
+
+byteShiftR :: Expression DAG.Byte -> Expression DAG.Word -> Expression DAG.Byte
+byteShiftR left right = Expression $ DAG.ShiftR (unExpression left) (unExpression right)
+
+byteBitWiseAnd :: Expression DAG.Byte -> Expression DAG.Word -> Expression DAG.Byte
+byteBitWiseAnd left right = Expression $ DAG.BitwiseAnd (unExpression left) (unExpression right)
+
+boolAnd :: Expression Bool -> Expression Bool -> Expression Bool
+boolAnd left right = Expression $ DAG.And (unExpression left) (unExpression right)
 
 compileProgram :: Action a -> IO ()
 compileProgram action = do
@@ -231,6 +253,13 @@ funcToStreamMap name returnType impMod numArgs = \inputStream ->
     inputStreamName <- unStream inputStream
     streamName <- unStream $ funcToStream name returnType impMod numArgs
     addDependency inputStreamName streamName
+
+liftStreamToMap :: Stream a -> (Stream b -> Stream a)
+liftStreamToMap outStream = \inputStream ->
+  Stream $ do
+    inputStreamName <- unStream inputStream
+    outStreamName <- unStream outStream
+    addDependency inputStreamName outStreamName
 
 getArgVals :: Int -> DAG.Expression -> [DAG.Expression]
 getArgVals 0 _ = []
@@ -362,8 +391,18 @@ flattenS stream = Stream $ do
     where
         expression = DAG.Flatten $ DAG.Input 0
 
-convToList :: [Expression a] -> Expression [a]
-convToList = Expression . DAG.ListConstant . map unExpression
+convToExprList :: [Expression a] -> Expression [a]
+convToExprList = Expression . DAG.ListConstant . map unExpression
+
+convFromExprList :: Expression [a] -> [Expression a]
+convFromExprList expr =
+  case unExpression expr of
+    DAG.ListConstant vals -> map Expression vals
+    DAG.TupleConstant vals -> map Expression vals
+    _ -> error "Cannot convert to list"
+
+concatLists :: Expression [a] -> Expression [a] -> Expression [a]
+concatLists list1 list2 = Expression $ DAG.ConcatLists (unExpression list1) (unExpression list2)
 
 unit :: Expression ()
 unit = Expression $ DAG.Unit
