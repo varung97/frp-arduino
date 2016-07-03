@@ -352,14 +352,21 @@ genExpression inputMap static expression = case expression of
     (ConcatLists list1 list2) -> do
         (Value list1name (CList cType) _ _) <- genExpression inputMap static list1
         (Value list2name (CList cType) _ _) <- genExpression inputMap static list2
+        newListName <- genCVariable $ cTypeStr (CList cType)
+        v <- label
+        header $ cTypeStr cType ++ " " ++ v ++ "[" ++ list1name ++ ".size + " ++ list2name ++ ".size];"
         i <- genCVariable (cTypeStr listSizeCType)
-        block ("for (" ++ i ++ " = 0; " ++ i ++ " < " ++ list2name ++ ".size; " ++ i ++ "++) {") $ do
-            line $ "((" ++ cTypeStr cType ++ "*)" ++ list1name ++ ".values)[" ++ i ++ " + " ++ list1name ++ ".size] = "
-                    ++ "((" ++ cTypeStr cType ++ "*)" ++ list2name ++ ".values)[" ++ i ++ "];"
-            -- generateCall outputStreamName ("((" ++ cTypeStr cType ++ "*)" ++ name ++ ".values)[" ++ i ++ "]")
+        block ("for (" ++ i ++ " = 0; " ++ i ++ " < " ++ list1name ++ ".size; " ++ i ++ "++) {") $ do
+            line $ v ++ "[" ++ i ++ "] = "
+                  ++ "((" ++ cTypeStr cType ++ "*)" ++ list1name ++ ".values)[" ++ i ++ "];"
         line "}"
-        line $ list1name ++ ".size += " ++ list2name ++ ".size;"
-        variable list1name (CList cType)
+        block ("for (" ++ i ++ " = 0; " ++ i ++ " < " ++ list2name ++ ".size; " ++ i ++ "++) {") $ do
+            line $ v ++ "[" ++ i ++ " + " ++ list1name ++ ".size] = "
+                    ++ "((" ++ cTypeStr cType ++ "*)" ++ list2name ++ ".values)[" ++ i ++ "];"
+        line "}"
+        line $ newListName ++ ".size = " ++ list1name ++ ".size + " ++ list2name ++ ".size;"
+        line $ newListName ++ ".values = (void*)" ++ v ++ ";"
+        variable newListName (CList cType)
 
 genArgs :: M.Map Int CType -> Bool -> [Expression] -> Gen String
 genArgs inputMap static [] = do
@@ -454,6 +461,9 @@ genStreamOutputCalling results stream = do
         (Value name cType Literal delay) -> do
             (Value wrappedName wrappedCType Variable _) <- wrap name cType
             return $ Value wrappedName wrappedCType Variable delay
+        -- (StaticValue name cType Literal delay) -> do
+        --     (StaticValue wrappedName wrappedCType Variable _) <- wrap name cType
+        --     return $ StaticValue wrappedName wrappedCType Variable delay
         _ -> do
             return result
     forM_ wrappedResults $ \result -> case result of
@@ -468,6 +478,7 @@ genStreamOutputCalling results stream = do
                     line $ "_delay_loop_2(" ++ x ++ ");"
                     line $ "_delay_loop_2(" ++ x ++ ");"
                 _ -> return ()
+        -- (StaticValue name cType _ delay) ->
         (FilterVariable name cType condition) -> do
             forM_ (outputs stream) $ \outputStreamName -> do
                 block ("if (" ++ condition ++ ") {") $ do
@@ -502,6 +513,10 @@ wrap expression cType = do
     name <- genCVariable (cTypeStr cType)
     line $ name ++ " = " ++ expression ++ ";"
     variable name cType
+
+-- wrapStatic :: String -> CType -> Gen ResultValue
+-- wrapStatic expression cType = do
+
 
 variable :: String -> CType -> Gen ResultValue
 variable name cType = return $ Value name cType Variable Nothing
@@ -546,6 +561,12 @@ genStaticCVariable cType value = do
     l <- label
     header $ "static " ++ cType ++ " " ++ l ++ " = " ++ value ++ ";"
     return l
+
+-- genStaticCVariable :: String -> String -> Gen String
+-- genStaticCVariable cType value = do
+--     l <- label
+--     header $ "static " ++ cType ++ " " ++ l ++ " = " ++ value ++ ";"
+--     return l
 
 cFunction :: String -> Gen a -> Gen a
 cFunction declaration gen = do

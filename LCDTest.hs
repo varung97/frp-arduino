@@ -10,7 +10,7 @@ main = compileProgram $ do
     -- digitalOutput pin13 =: tick ~> toggle
 
     setupLCD [ bootup ~> mapSMany (const introText)
-             , every 2000 ~> arr formatNumber ~> arr prependSpecial ~> flattenS ~> mapS statusText ~> flattenS
+             , every 2000 ~> arr ((*) 10) ~> arr formatNumber ~> arr prependSpecial ~> flattenS ~> mapS statusText ~> flattenS
             --  , clock ~> mapSMany statusText
              ]
 

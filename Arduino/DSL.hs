@@ -44,13 +44,16 @@ module Arduino.DSL
     , wordBitWiseAnd
     , byteShiftR
     , byteBitWiseAnd
+    , boolAnd
 
     -- ** Bits
     , DAG.Bit
     , bitHigh
     , bitLow
     , flipBit
+    , notBool
     , isHigh
+    , isLow
     , boolToBit
 
     -- ** Bytes
@@ -423,6 +426,9 @@ greater left right = Expression $ DAG.Greater (unExpression left) (unExpression 
 flipBit :: Expression DAG.Bit -> Expression DAG.Bit
 flipBit = Expression . DAG.Not . unExpression
 
+notBool :: Expression Bool -> Expression Bool
+notBool = Expression . DAG.Not . unExpression
+
 isEven :: Expression DAG.Word -> Expression Bool
 isEven = Expression . DAG.Even . unExpression
 
@@ -431,6 +437,9 @@ boolToBit = Expression . DAG.BoolToBit . unExpression
 
 isHigh :: Expression DAG.Bit -> Expression Bool
 isHigh = Expression . DAG.IsHigh . unExpression
+
+isLow :: Expression DAG.Bit -> Expression Bool
+isLow = isHigh . flipBit
 
 formatString :: String -> Expression [DAG.Byte]
 formatString = Expression . DAG.ListConstant . map (DAG.ByteConstant . fromIntegral . ord)
